@@ -533,20 +533,37 @@ function useOffline() {
 // ══════════════════════════════════════════════
 //  API
 // ══════════════════════════════════════════════
-async function apiCall(action, params={}, body=null) {
+async function apiCall(action, params = {}, body = null) {
+
   if (!CONFIG.API_URL) return null;
+
   try {
+
     const url = new URL(CONFIG.API_URL);
+
     url.searchParams.set("action", action);
-    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
-    const opts = body
-      ? { method:"POST", body: JSON.stringify({action,...body}), headers:{"Content-Type":"application/json"} }
-      : { method:"GET" };
-    const res = await fetch(url.toString(), opts);
-    return await res.json();
-  } catch(e) {
-    console.warn("API error:", e);
-    return null;
+
+    Object.entries(params).forEach(([k, v]) => {
+      url.searchParams.set(k, v);
+    });
+
+    const options = body
+      ? {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({action,...body})
+        }
+      : { method: "GET" };
+
+    const response = await fetch(url.toString(), options);
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    return await response.json();
+
+  } catch (err) {
+    console.error("API ERROR:", err);
+    return { ok:false, error:err.message };
   }
 }
 
@@ -581,12 +598,18 @@ async function syncNow() {
 //  LOCAL STORAGE
 // ══════════════════════════════════════════════
 function saveLocal() {
-  localStorage.setItem("fb_state", JSON.stringify({
-    categorias: state.categorias,
-    contasFixas: state.contasFixas,
-    metas: state.metas,
-    dados: { [curKey()]: state.dadosMes }
-  }));
+
+  const atual = JSON.parse(localStorage.getItem("fb_state") || "{}");
+
+  if (!atual.dados) atual.dados = {};
+
+  atual.categorias = state.categorias;
+  atual.contasFixas = state.contasFixas;
+  atual.metas = state.metas;
+
+  atual.dados[curKey()] = state.dadosMes;
+
+  localStorage.setItem("fb_state", JSON.stringify(atual));
 }
 
 function loadLocal() {
